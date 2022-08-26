@@ -209,7 +209,9 @@ pub const Keymap = opaque {
     }
 
     extern fn xkb_keymap_key_repeats(keymap: *Keymap, key: Keycode) c_int;
-    pub const keyRepeats = xkb_keymap_key_repeats;
+    pub fn keyRepeats(keymap: *Keymap, key: Keycode) bool {
+        return xkb_keymap_key_repeats(keymap, key) != 0;
+    }
 };
 
 pub const ConsumedMode = enum(c_int) {
@@ -271,9 +273,13 @@ pub const State = opaque {
         return if (len == 0) &[0]Keysym{} else ptr.?[0..@intCast(usize, len)];
     }
 
-    extern fn xkb_state_key_get_utf8(state: *State, key: Keycode, buffer: [*]u8, size: usize) c_int;
-    pub fn keyGetUtf8(state: *State, key: Keycode, buffer: []u8) usize {
-        return @intCast(usize, xkb_state_key_get_utf8(state, key, buffer.ptr, buffer.len));
+    extern fn xkb_state_key_get_utf8(state: *State, key: Keycode, buffer: ?[*]u8, size: usize) c_int;
+    pub fn keyGetUtf8(state: *State, key: Keycode, buffer: ?[]u8) usize {
+        if (buffer) |buf| {
+            return @intCast(usize, xkb_state_key_get_utf8(state, key, buf.ptr, buf.len));
+        } else {
+            return @intCast(usize, xkb_state_key_get_utf8(state, key, null, 0));
+        }
     }
 
     extern fn xkb_state_key_get_utf32(state: *State, key: Keycode) u32;
