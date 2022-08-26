@@ -340,6 +340,91 @@ pub const State = opaque {
     pub const ledIndexIsActive = xkb_state_led_index_is_active;
 };
 
+pub const ComposeTable = opaque {
+    pub const CompileFlags = enum(c_int) {
+        no_flags = 0,
+    };
+
+    extern fn xkb_compose_table_new_from_locale(context: *Context, locale: [*c]const u8, flags: CompileFlags) ?*ComposeTable;
+    pub const newFromLocale = xkb_compose_table_new_from_locale;
+
+    extern fn xkb_compose_table_ref(table: *ComposeTable) *ComposeTable;
+    pub const ref = xkb_compose_table_ref;
+
+    extern fn xkb_compose_table_unref(table: *ComposeTable) void;
+    pub const unref = xkb_compose_table_unref;
+};
+
+pub const ComposeState = opaque {
+    pub const Flags = enum(c_int) {
+        no_flags = 0,
+    };
+
+    pub const Status = enum(c_uint) {
+        nothing = 0,
+        composing = 1,
+        composed = 2,
+        cancelled = 3,
+        _,
+    };
+
+    pub const FeedResult = enum(c_uint) {
+        ignored = 0,
+        accepted = 1,
+        _,
+    };
+
+    extern fn xkb_compose_state_new(table: *ComposeTable, flags: Flags) ?*ComposeState;
+    pub const new = xkb_compose_state_new;
+
+    extern fn xkb_compose_state_ref(state: *ComposeState) *ComposeState;
+    pub const ref = xkb_compose_state_ref;
+
+    extern fn xkb_compose_state_unref(state: *ComposeState) void;
+    pub const unref = xkb_compose_state_unref;
+
+    extern fn xkb_compose_state_get_compose_table(state: *ComposeState) *ComposeTable;
+    pub const getComposeTable = xkb_compose_state_get_compose_table;
+
+    extern fn xkb_compose_state_feed(state: *ComposeState, keysym: Keysym) FeedResult;
+    pub const feed = xkb_compose_state_feed;
+
+    extern fn xkb_compose_state_reset(state: *ComposeState) void;
+    pub const reset = xkb_compose_state_reset;
+
+    extern fn xkb_compose_state_get_status(state: *ComposeState) Status;
+    pub const getStatus = xkb_compose_state_get_status;
+
+    extern fn xkb_compose_state_get_utf8(state: *ComposeState, buffer: [*c]u8, size: usize) c_int;
+    pub fn getUtf8(state: *ComposeState, buffer: ?[]u8) usize {
+        if (buffer) |buf| {
+            return @intCast(usize, xkb_compose_state_get_utf8(state, buf.ptr, buf.len));
+        } else {
+            return @intCast(usize, xkb_compose_state_get_utf8(state, null, 0));
+        }
+    }
+
+    extern fn xkb_compose_state_get_one_sym(state: *ComposeState) Keysym;
+    pub const getOneSum = xkb_compose_state_get_one_sym;
+};
+
+fn refAllDeclsRecursive(comptime T: type) void {
+    @setEvalBranchQuota(1000000);
+    const decls = switch (@typeInfo(T)) {
+        .Struct => |info| info.decls,
+        .Union => |info| info.decls,
+        .Enum => |info| info.decls,
+        .Opaque => |info| info.decls,
+        else => return,
+    };
+    inline for (decls) |decl| {
+        switch (decl.data) {
+            .Type => |T2| refAllDeclsRecursive(T2),
+            else => {},
+        }
+    }
+}
+
 test {
     const std = @import("std");
     @setEvalBranchQuota(4000);
